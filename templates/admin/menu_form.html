@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - Admin{% endblock %}
+{% block content %}
+<div class="form-container">
+  <h2>{{ title }}</h2>
+  <form method="POST" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.name.label }} {{ form.name(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.description.label }} {{ form.description(class="form-control", rows=3) }}
+    </div>
+    <div class="form-group">
+      {{ form.price.label }} {{ form.price(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.category_id.label }} {{ form.category_id(class="form-control") }}
+      <small class="help-text">Select an existing category</small>
+    </div>
+    <div class="form-group">
+      {{ form.new_category.label }} {{ form.new_category(class="form-control", placeholder="e.g. Beverages") }}
+      <small class="help-text">Or type a new category name</small>
+    </div>
+    <div class="form-group">
+      {{ form.image.label }} {{ form.image(class="form-control", accept="image/*") }}
+      <small class="help-text">Upload an image (jpg, png, gif, webp)</small>
+    </div>
+    <div class="form-group">
+      {{ form.image_url.label }} {{ form.image_url(class="form-control", placeholder="https://...") }}
+      <small class="help-text">Or paste an image URL instead</small>
+    </div>
+    <div class="form-group">
+      {{ form.stock.label }} {{ form.stock(class="form-control") }}
+    </div>
+    <div class="form-group form-check">
+      {{ form.featured() }} {{ form.featured.label }}
+    </div>
+    <div class="form-group form-check">
+      {{ form.available() }} {{ form.available.label }}
+    </div>
+    {{ form.submit(class="btn btn-primary") }}
+    <a href="{{ url_for('admin.manage_menu') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

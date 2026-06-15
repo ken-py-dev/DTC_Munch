@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Menu - School Canteen{% endblock %}
+{% block content %}
+<div class="menu-header">
+  <h1>Today's Menu</h1>
+  <form action="{{ url_for('menu.index') }}" method="GET" class="search-form">
+    <input type="search" name="q" value="{{ search or '' }}" placeholder="Search menu..." class="form-control search-input">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    {% if search %}<a href="{{ url_for('menu.index') }}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+  </form>
+  <div class="category-filter">
+    <a href="{{ url_for('menu.index', featured=1) }}" class="btn btn-sm {% if featured_only %}btn-warning{% else %}btn-secondary{% endif %}">Featured</a>
+    <a href="{{ url_for('menu.index') }}" class="btn {% if not selected_category and not search and not featured_only %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+    {% for cat in categories %}
+      <a href="{{ url_for('menu.index', category=cat.id, q=search if search else none) }}"
+         class="btn {% if selected_category == cat.id %}btn-primary{% else %}btn-secondary{% endif %}">
+        {{ cat.name }}
+      </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="menu-grid">
+  {% for item in items %}
+    <div class="menu-card">
+      {% if item.image_src %}
+        <img src="{{ item.image_src }}" alt="{{ item.name }}" class="menu-card-img">
+      {% endif %}
+      <div class="menu-card-body">
+        <div class="menu-card-title-row">
+          <h3>{{ item.name }}</h3>
+          <div class="menu-card-actions-top">
+            {% if current_user.is_authenticated %}
+              <form action="{{ url_for('orders.toggle_favorite', item_id=item.id) }}" method="POST" class="fav-form">
+                <button type="submit" class="btn-fav {% if item.is_favorited_by(current_user) %}fav-active{% endif %}" title="Toggle favorite">&#9733;</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+        {% if item.featured %}
+          <span class="featured-badge">Daily Special</span>
+        {% endif %}
+        {% if item.avg_rating %}
+          <span class="stars">{{ '%E2%98%85'|safe * item.avg_rating|int }}{{ '%E2%98%86'|safe * (5 - item.avg_rating|int) }} <small>{{ item.avg_rating }}</small></span>
+        {% endif %}
+        {% if item.description %}
+          <p class="description">{{ item.description }}</p>
+        {% endif %}
+        <p class="category-badge">{{ item.category.name }}</p>
+        <div class="menu-card-footer">
+          <span class="price">${{ "%.2f"|format(item.price) }}</span>
+          <span class="stock">Stock: {{ item.stock }}</span>
+        </div>
+        {% if item.available and item.stock > 0 %}
+          <form action="{{ url_for('orders.add_to_cart', item_id=item.id) }}" method="POST" class="add-to-cart-form">
+            <div class="qty-add-row">
+              <input type="number" name="quantity" value="1" min="1" max="{{ [item.stock, 99]|min }}" class="qty-input-sm">
+              <button type="submit" class="btn btn-primary btn-sm btn-add-cart">Add to Cart</button>
+            </div>
+          </form>
+        {% else %}
+          <button class="btn btn-disabled btn-block" disabled>Unavailable</button>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No menu items found.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

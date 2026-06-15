@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Invoices - Admin{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <h1>Invoices {% if unpaid_count > 0 %}<span class="badge badge-warning">{{ unpaid_count }} unpaid</span>{% endif %}</h1>
+</div>
+
+<div class="filter-bar">
+  <a href="{{ url_for('admin.manage_invoices') }}" class="btn btn-sm {% if paid_filter is none %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+  <a href="{{ url_for('admin.manage_invoices', paid='0') }}" class="btn btn-sm {% if paid_filter == '0' %}btn-primary{% else %}btn-secondary{% endif %}">Unpaid</a>
+  <a href="{{ url_for('admin.manage_invoices', paid='1') }}" class="btn btn-sm {% if paid_filter == '1' %}btn-primary{% else %}btn-secondary{% endif %}">Paid</a>
+</div>
+
+<table class="table">
+  <thead>
+    <tr><th>Invoice</th><th>User</th><th>Date</th><th>Items</th><th>Total</th><th>Method</th><th>Paid</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+      <tr class="{% if not order.paid %}row-unpaid{% endif %}">
+        <td><a href="{{ url_for('orders.invoice', order_id=order.id) }}">{{ order.invoice_number }}</a></td>
+        <td>{{ order.user.username }}</td>
+        <td>{{ order.order_date.strftime('%Y-%m-%d') }}</td>
+        <td class="items-cell">
+          {% for oi in order.items %}{{ oi.menu_item.name }} x{{ oi.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}
+        </td>
+        <td>${{ "%.2f"|format(order.total_amount) }}</td>
+        <td>{{ order.payment_method|title }}</td>
+        <td>
+          {% if order.paid %}
+            <span class="status-completed">Paid</span>
+          {% else %}
+            <span class="status-pending">Unpaid</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <form action="{{ url_for('admin.toggle_paid', order_id=order.id) }}" method="POST">
+            <button type="submit" class="btn btn-sm {% if order.paid %}btn-secondary{% else %}btn-success{% endif %}">
+              {{ 'Mark Unpaid' if order.paid else 'Mark Paid' }}
+            </button>
+          </form>
+          <a href="{{ url_for('orders.invoice', order_id=order.id) }}" class="btn btn-sm">View</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% include "admin/_pagination.html" %}
+{% endblock %}

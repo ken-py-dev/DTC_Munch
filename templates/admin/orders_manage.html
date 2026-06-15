@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Orders - Admin{% endblock %}
+{% block content %}
+<h1>Manage Orders</h1>
+
+<div class="filter-bar">
+  <a href="{{ url_for('admin.manage_orders') }}" class="btn btn-sm {% if not request.args.get('status') %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+  <a href="{{ url_for('admin.manage_orders', status='cancel_requested') }}" class="btn btn-sm {% if request.args.get('status') == 'cancel_requested' %}btn-warning{% else %}btn-secondary{% endif %}">Cancel Requests</a>
+  <a href="{{ url_for('admin.manage_orders', status='pending') }}" class="btn btn-sm {% if request.args.get('status') == 'pending' %}btn-primary{% else %}btn-secondary{% endif %}">Pending</a>
+  <a href="{{ url_for('admin.manage_orders', status='confirmed') }}" class="btn btn-sm {% if request.args.get('status') == 'confirmed' %}btn-primary{% else %}btn-secondary{% endif %}">Confirmed</a>
+  <a href="{{ url_for('admin.manage_orders', status='preparing') }}" class="btn btn-sm {% if request.args.get('status') == 'preparing' %}btn-primary{% else %}btn-secondary{% endif %}">Preparing</a>
+  <a href="{{ url_for('admin.manage_orders', status='ready') }}" class="btn btn-sm {% if request.args.get('status') == 'ready' %}btn-primary{% else %}btn-secondary{% endif %}">Ready</a>
+  <a href="{{ url_for('admin.manage_orders', status='completed') }}" class="btn btn-sm {% if request.args.get('status') == 'completed' %}btn-primary{% else %}btn-secondary{% endif %}">Completed</a>
+  <a href="{{ url_for('admin.manage_orders', status='cancelled') }}" class="btn btn-sm {% if request.args.get('status') == 'cancelled' %}btn-primary{% else %}btn-secondary{% endif %}">Cancelled</a>
+</div>
+
+<table class="table">
+  <thead>
+    <tr><th>ID</th><th>User</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+      <tr>
+        <td>#{{ order.id }}</td>
+        <td>{{ order.user.username }}</td>
+        <td>{{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          {% for oi in order.items %}{{ oi.menu_item.name }} x{{ oi.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}
+        </td>
+        <td>${{ "%.2f"|format(order.total_amount) }}</td>
+        <td><span class="status-{{ order.status }}">{{ order.status.title() }}</span></td>
+        <td>
+          {% if order.status == 'cancel_requested' %}
+            <div class="actions">
+              <form action="{{ url_for('admin.approve_cancel', order_id=order.id) }}" method="POST" style="display:inline">
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Approve cancellation and refund?')">Approve</button>
+              </form>
+              <form action="{{ url_for('admin.reject_cancel', order_id=order.id) }}" method="POST" style="display:inline">
+                <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Reject cancellation request?')">Reject</button>
+              </form>
+            </div>
+          {% elif order.status != 'cancelled' and order.status != 'completed' %}
+            <form action="{{ url_for('admin.update_order_status', order_id=order.id) }}" method="POST" class="status-form">
+              <select name="status" class="form-control form-control-sm">
+                <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Ready</option>
+                <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Completed</option>
+              </select>
+              <button type="submit" class="btn btn-sm">Update</button>
+            </form>
+          {% else %}
+            <span class="status-{{ order.status }}">{{ order.status.title() }}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% include "admin/_pagination.html" with context %}
+{% endblock %}

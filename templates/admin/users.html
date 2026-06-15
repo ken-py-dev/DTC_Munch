@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Users - Admin{% endblock %}
+{% block content %}
+<h1>Manage Users</h1>
+<table class="table">
+  <thead>
+    <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Student ID</th><th>Balance</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.role.title() }}</td>
+        <td>{{ u.student_id or '-' }}</td>
+        <td>${{ "%.2f"|format(u.balance) }}</td>
+        <td>
+          <form action="{{ url_for('admin.topup_balance', user_id=u.id) }}" method="POST" class="topup-form">
+            <input type="number" name="amount" step="0.01" min="0.01" placeholder="Amount" class="form-control form-control-sm" required>
+            <button type="submit" class="btn btn-sm btn-success">Top Up</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% include "admin/_pagination.html" %}
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ order.invoice_number }} - School Canteen{% endblock %}
+{% block content %}
+<div class="invoice">
+  <div class="invoice-header">
+    <div class="invoice-brand">
+      <h1>School Canteen</h1>
+      <p>123 School Street<br>City, State 12345</p>
+    </div>
+    <div class="invoice-meta">
+      <h2>INVOICE</h2>
+      <p><strong>{{ order.invoice_number }}</strong></p>
+      <p>Date: {{ order.order_date.strftime('%Y-%m-%d') }}</p>
+      <p>Payment: {{ order.payment_method|title }}</p>
+      <p class="status-{{ 'paid' if order.paid else 'pending' }}">
+        {{ 'PAID' if order.paid else 'UNPAID' }}
+      </p>
+    </div>
+  </div>
+
+  <div class="invoice-user">
+    <p><strong>Bill To:</strong></p>
+    <p>{{ order.user.username }}<br>
+       {{ order.user.email }}<br>
+       {% if order.user.student_id %}ID: {{ order.user.student_id }}{% endif %}
+    </p>
+  </div>
+
+  <table class="table invoice-table">
+    <thead>
+      <tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr>
+    </thead>
+    <tbody>
+      {% for oi in order.items %}
+        <tr>
+          <td>{{ oi.menu_item.name }}</td>
+          <td>{{ oi.quantity }}</td>
+          <td>${{ "%.2f"|format(oi.unit_price) }}</td>
+          <td>${{ "%.2f"|format(oi.subtotal()) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" class="text-right"><strong>Total</strong></td>
+        <td><strong>${{ "%.2f"|format(order.total_amount) }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="invoice-footer">
+    <p>Thank you for your order!</p>
+    {% if not order.paid %}
+      <p class="payment-note">Payment pending — await admin confirmation.</p>
+    {% endif %}
+  </div>
+
+  <div class="invoice-actions no-print">
+    <button onclick="window.print()" class="btn btn-primary">Print Invoice</button>
+    <a href="{{ url_for('orders.history') }}" class="btn btn-secondary">Back to Orders</a>
+  </div>
+</div>
+{% endblock %}

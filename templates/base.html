@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}School Canteen{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>document.addEventListener('click',function(e){var c=document.getElementById('nav-check');if(c&&e.target.closest('.nav-links a'))c.checked=false;});</script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="{{ url_for('menu.index') }}" class="nav-brand">School Canteen</a>
+      <input type="checkbox" id="nav-check" autocomplete="off">
+      <label for="nav-check" class="nav-toggle" aria-label="Toggle navigation menu">
+        <span></span><span></span><span></span>
+      </label>
+      <div class="nav-links">
+        <a href="{{ url_for('menu.index') }}">Menu</a>
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('orders.view_cart') }}">Cart</a>
+          <a href="{{ url_for('orders.history') }}">My Orders</a>
+          {% if current_user.is_admin() %}
+            <a href="{{ url_for('admin.dashboard') }}">Admin</a>
+            <a href="{{ url_for('admin.manage_invoices') }}">Invoices</a>
+          {% endif %}
+          <a href="{{ url_for('auth.logout') }}">Logout</a>
+          <span class="nav-user">{{ current_user.username }}</span>
+          <span class="nav-balance">${{ "%.2f"|format(current_user.balance) }}</span>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}">Login</a>
+          <a href="{{ url_for('auth.register') }}">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <div class="flash-messages">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; {{ now().year }} School Canteen</p>
+    </div>
+  </footer>
+</body>
+</html>
