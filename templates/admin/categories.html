@@ -16,6 +16,7 @@
         <td class="actions">
           <a href="{{ url_for('admin.edit_category', cat_id=cat.id) }}" class="btn btn-sm">Edit</a>
           <form action="{{ url_for('admin.delete_category', cat_id=cat.id) }}" method="POST" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this category?')">Delete</button>
           </form>
         </td>

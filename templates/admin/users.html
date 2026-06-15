@@ -14,9 +14,10 @@
         <td>{{ u.email }}</td>
         <td>{{ u.role.title() }}</td>
         <td>{{ u.student_id or '-' }}</td>
-        <td>${{ "%.2f"|format(u.balance) }}</td>
+        <td>₱{{ "%.2f"|format(u.balance) }}</td>
         <td>
           <form action="{{ url_for('admin.topup_balance', user_id=u.id) }}" method="POST" class="topup-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="number" name="amount" step="0.01" min="0.01" placeholder="Amount" class="form-control form-control-sm" required>
             <button type="submit" class="btn btn-sm btn-success">Top Up</button>
           </form>

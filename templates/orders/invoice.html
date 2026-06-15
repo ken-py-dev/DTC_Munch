@@ -4,8 +4,8 @@
 <div class="invoice">
   <div class="invoice-header">
     <div class="invoice-brand">
-      <h1>School Canteen</h1>
-      <p>123 School Street<br>City, State 12345</p>
+      <h1>{{ canteen_name }}</h1>
+      <p>{{ canteen_address|safe }}</p>
     </div>
     <div class="invoice-meta">
       <h2>INVOICE</h2>
@@ -35,15 +35,15 @@
         <tr>
           <td>{{ oi.menu_item.name }}</td>
           <td>{{ oi.quantity }}</td>
-          <td>${{ "%.2f"|format(oi.unit_price) }}</td>
-          <td>${{ "%.2f"|format(oi.subtotal()) }}</td>
+          <td>₱{{ "%.2f"|format(oi.unit_price) }}</td>
+          <td>₱{{ "%.2f"|format(oi.subtotal()) }}</td>
         </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr>
         <td colspan="3" class="text-right"><strong>Total</strong></td>
-        <td><strong>${{ "%.2f"|format(order.total_amount) }}</strong></td>
+        <td><strong>₱{{ "%.2f"|format(order.total_amount) }}</strong></td>
       </tr>
     </tfoot>
   </table>

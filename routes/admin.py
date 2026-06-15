@@ -1,84 +1,59 @@
 import os
 import uuid
+from decimal import Decimal
 from flask import (Blueprint, render_template, redirect, url_for,
                    flash, request, abort, current_app)
 from flask_login import login_required, current_user
-from models import db, User, Order, OrderItem, MenuItem, Category
+from models import db, User, Order, OrderItem, MenuItem, Category, ALLOWED_STATUS_TRANSITIONS
 from forms import MenuItemForm, CategoryForm
-from sqlalchemy import exc
+from routes import admin_required
+from sqlalchemy.orm import joinedload
+from sqlalchemy import exc, func
+from datetime import datetime, timezone, timedelta
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
-PER_PAGE = 20
-
-ALLOWED_STATUS_TRANSITIONS = {
-    'pending': ['confirmed', 'cancel_requested'],
-    'confirmed': ['preparing', 'cancel_requested'],
-    'preparing': ['ready', 'cancel_requested'],
-    'pending_payment': ['confirmed', 'cancel_requested'],
-    'cancel_requested': ['cancelled'],
-    'ready': ['completed'],
-    'completed': [],
-    'cancelled': [],
-}
-
-
-def allowed_file(filename):
-    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-    return ext in current_app.config['ALLOWED_EXTENSIONS']
 
 
 def save_upload(file):
-    if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        name = str(uuid.uuid4()) + '.' + ext
-        path = os.path.join(current_app.config['UPLOAD_FOLDER'], name)
-        file.save(path)
-        return name
+    if file and file.filename:
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if ext in current_app.config['ALLOWED_EXTENSIONS']:
+            name = str(uuid.uuid4()) + '.' + ext
+            path = os.path.join(current_app.config['UPLOAD_FOLDER'], name)
+            file.save(path)
+            return name
     return None
-
-
-def admin_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin():
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated_function
 
 
 @admin_bp.route('/')
 @login_required
 @admin_required
 def dashboard():
-    from datetime import datetime, timezone, timedelta
-    from sqlalchemy import func
-
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
 
-    def revenue_since(dt):
-        return db.session.query(func.coalesce(func.sum(Order.total_amount), 0))\
-            .filter(Order.order_date >= dt, Order.paid == True,
-                    Order.status != 'cancelled').scalar()
+    epoch = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
-    def count_since(dt, *filters):
-        q = Order.query.filter(Order.order_date >= dt)
-        for f in filters:
-            q = q.filter(f)
-        return q.count()
+    rev_row = db.session.query(
+        func.coalesce(func.sum(Order.total_amount).filter(Order.order_date >= today_start), 0),
+        func.coalesce(func.sum(Order.total_amount).filter(Order.order_date >= week_start), 0),
+        func.coalesce(func.sum(Order.total_amount).filter(Order.order_date >= month_start), 0),
+        func.coalesce(func.sum(Order.total_amount).filter(Order.order_date >= epoch), 0),
+    ).filter(Order.paid == True, Order.status != 'cancelled').first()
 
-    total_revenue = revenue_since(datetime(2000, 1, 1, tzinfo=timezone.utc))
-    today_revenue = revenue_since(today_start)
-    week_revenue = revenue_since(week_start)
-    month_revenue = revenue_since(month_start)
+    today_revenue, week_revenue, month_revenue, total_revenue = rev_row
+
+    cnt_row = db.session.query(
+        func.count(Order.id).filter(Order.order_date >= today_start),
+        func.count(Order.id),
+    ).first()
+
+    orders_today, orders_total = cnt_row
 
     total_users = User.query.count()
     total_items = MenuItem.query.count()
-    orders_today = count_since(today_start)
-    orders_total = Order.query.count()
     pending_invoices = Order.query.filter_by(paid=False).count()
     pending_orders = Order.query.filter(
         Order.status.in_(['pending', 'pending_payment', 'confirmed', 'preparing'])
@@ -111,20 +86,19 @@ def dashboard():
         User.created_at >= (now - timedelta(days=30))
     ).count()
 
-    recent_orders = Order.query.order_by(Order.order_date.desc()).limit(5).all()
+    recent_orders = Order.query.options(
+        joinedload(Order.user)
+    ).order_by(Order.order_date.desc()).limit(5).all()
 
     chart_days = []
     for i in range(6, -1, -1):
         day = today_start - timedelta(days=i)
-        rev = db.session.query(func.coalesce(func.sum(Order.total_amount), 0))\
-            .filter(Order.order_date >= day,
-                    Order.order_date < day + timedelta(days=1),
-                    Order.paid == True).scalar()
-        count = Order.query.filter(
-            Order.order_date >= day,
-            Order.order_date < day + timedelta(days=1)
-        ).count()
-        chart_days.append({'label': day.strftime('%a'), 'revenue': rev, 'count': count})
+        next_day = day + timedelta(days=1)
+        row = db.session.query(
+            func.coalesce(func.sum(Order.total_amount).filter(Order.paid == True), 0),
+            func.count(Order.id),
+        ).filter(Order.order_date >= day, Order.order_date < next_day).first()
+        chart_days.append({'label': day.strftime('%a'), 'revenue': row[0], 'count': row[1]})
     max_rev = max(d['revenue'] for d in chart_days) or 1
     max_cnt = max(d['count'] for d in chart_days) or 1
 
@@ -156,8 +130,9 @@ def dashboard():
 @admin_required
 def manage_menu():
     page = request.args.get('page', 1, type=int)
-    pagination = MenuItem.query.order_by(MenuItem.name)\
-                               .paginate(page=page, per_page=PER_PAGE, error_out=False)
+    pagination = MenuItem.query.options(joinedload(MenuItem.category))\
+                               .order_by(MenuItem.name)\
+                               .paginate(page=page, per_page=current_app.config['ITEMS_PER_PAGE'], error_out=False)
     return render_template('admin/menu_manage.html', items=pagination.items,
                            pagination=pagination)
 
@@ -227,8 +202,6 @@ def edit_menu_item(item_id):
                 item.image = filename
         elif form.image_url.data:
             item.image = form.image_url.data
-        elif form.image.data is None:
-            pass
 
         item.name = form.name.data
         item.description = form.description.data
@@ -335,10 +308,12 @@ def delete_category(cat_id):
 def manage_orders():
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status')
-    query = Order.query.order_by(Order.order_date.desc())
+    query = Order.query.options(
+        joinedload(Order.user), joinedload(Order.items).joinedload(OrderItem.menu_item)
+    ).order_by(Order.order_date.desc())
     if status_filter:
         query = query.filter_by(status=status_filter)
-    pagination = query.paginate(page=page, per_page=PER_PAGE, error_out=False)
+    pagination = query.paginate(page=page, per_page=current_app.config['ITEMS_PER_PAGE'], error_out=False)
     return render_template('admin/orders_manage.html', orders=pagination.items,
                            pagination=pagination, status_filter=status_filter)
 
@@ -375,7 +350,9 @@ def approve_cancel(order_id):
             if item:
                 item.stock += oi.quantity
         if order.payment_method == 'balance' and order.paid:
-            current_user.balance += order.total_amount
+            user = User.query.get(order.user_id)
+            if user:
+                user.balance += order.total_amount
         order.previous_status = None
         db.session.commit()
         flash(f'Order #{order.id} cancelled and refunded.', 'success')
@@ -409,12 +386,14 @@ def reject_cancel(order_id):
 def manage_invoices():
     page = request.args.get('page', 1, type=int)
     paid_filter = request.args.get('paid')
-    query = Order.query.order_by(Order.order_date.desc())
+    query = Order.query.options(
+        joinedload(Order.user), joinedload(Order.items).joinedload(OrderItem.menu_item)
+    ).order_by(Order.order_date.desc())
     if paid_filter == '0':
         query = query.filter_by(paid=False)
     elif paid_filter == '1':
         query = query.filter_by(paid=True)
-    pagination = query.paginate(page=page, per_page=PER_PAGE, error_out=False)
+    pagination = query.paginate(page=page, per_page=current_app.config['ITEMS_PER_PAGE'], error_out=False)
     unpaid_count = Order.query.filter_by(paid=False).count()
     return render_template('admin/invoices.html', orders=pagination.items,
                            pagination=pagination, unpaid_count=unpaid_count,
@@ -441,7 +420,7 @@ def toggle_paid(order_id):
 def manage_users():
     page = request.args.get('page', 1, type=int)
     pagination = User.query.order_by(User.username)\
-                           .paginate(page=page, per_page=PER_PAGE, error_out=False)
+                           .paginate(page=page, per_page=current_app.config['ITEMS_PER_PAGE'], error_out=False)
     return render_template('admin/users.html', users=pagination.items,
                            pagination=pagination)
 
@@ -451,15 +430,18 @@ def manage_users():
 @admin_required
 def topup_balance(user_id):
     user = User.query.get_or_404(user_id)
-    amount = request.form.get('amount', type=float)
-    if amount and 0 < amount <= 10000:
+    try:
+        amount = Decimal(request.form.get('amount', '0'))
+    except Exception:
+        amount = Decimal('0')
+    if Decimal('0') < amount <= Decimal('10000'):
         user.balance += amount
         db.session.commit()
         current_app.logger.info(
-            f'Admin {current_user.id} topped up user {user.id} ({user.username}) '
-            f'by ${amount:.2f}. New balance: ${user.balance:.2f}'
+            'Admin %s topped up user %s (%s) by ₱%.2f. New balance: ₱%.2f',
+            current_user.id, user.id, user.username, amount, user.balance,
         )
-        flash(f'Added ${amount:.2f} to {user.username}\'s balance.', 'success')
+        flash(f'Added ₱{amount:.2f} to {user.username}\'s balance.', 'success')
     else:
         flash('Enter an amount between $0.01 and $10,000.', 'error')
     return redirect(url_for('admin.manage_users'))

@@ -1,8 +1,9 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, render_template
 from flask_login import LoginManager
+from flask_wtf import CSRFProtect
 from config import Config
 from models import db, User
 
@@ -15,6 +16,7 @@ def create_app():
                         format='%(asctime)s %(levelname)s %(name)s: %(message)s')
 
     db.init_app(app)
+    CSRFProtect(app)
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -27,7 +29,14 @@ def create_app():
 
     @app.context_processor
     def inject_now():
-        return {'now': datetime.utcnow}
+        return {'now': lambda: datetime.now(timezone.utc)}
+
+    @app.context_processor
+    def inject_canteen():
+        return {
+            'canteen_name': app.config['CANTEEN_NAME'],
+            'canteen_address': app.config['CANTEEN_ADDRESS'],
+        }
 
     @app.errorhandler(404)
     def not_found(e):
@@ -64,7 +73,7 @@ def create_app():
             db.session.add(admin)
 
             student = User(username='demo', email='demo@canteen.com',
-                           role='student', balance=50.0)
+                           role='student', balance=500.0)
             student.set_password('demo123')
             db.session.add(student)
 
@@ -76,21 +85,21 @@ def create_app():
 
             demo_items = [
                 MenuItem(name='Chicken Rice', description='Steamed chicken with fragrant rice',
-                         price=4.50, category_id=mains.id, stock=30, featured=True),
+                         price=65.0, category_id=mains.id, stock=30, featured=True),
                 MenuItem(name='Nasi Lemak', description='Coconut rice with sambal, egg & anchovies',
-                         price=3.80, category_id=mains.id, stock=25, featured=True),
+                         price=55.0, category_id=mains.id, stock=25, featured=True),
                 MenuItem(name='Fried Noodles', description='Stir-fried noodles with vegetables',
-                         price=3.50, category_id=mains.id, stock=20),
+                         price=50.0, category_id=mains.id, stock=20),
                 MenuItem(name='Spring Rolls', description='Crispy vegetable spring rolls (4 pcs)',
-                         price=2.00, category_id=snacks.id, stock=40),
+                         price=35.0, category_id=snacks.id, stock=40),
                 MenuItem(name='Curry Puff', description='Flaky pastry with spicy potato filling',
-                         price=1.50, category_id=snacks.id, stock=35),
+                         price=25.0, category_id=snacks.id, stock=35),
                 MenuItem(name='Iced Lemon Tea', description='Refreshing chilled lemon tea',
-                         price=1.20, category_id=drinks.id, stock=50),
+                         price=20.0, category_id=drinks.id, stock=50),
                 MenuItem(name='Orange Juice', description='Freshly squeezed orange juice',
-                         price=2.00, category_id=drinks.id, stock=30),
+                         price=35.0, category_id=drinks.id, stock=30),
                 MenuItem(name='Mineral Water', description='500ml bottled water',
-                         price=0.80, category_id=drinks.id, stock=100),
+                         price=15.0, category_id=drinks.id, stock=100),
             ]
             db.session.add_all(demo_items)
             db.session.commit()
@@ -100,4 +109,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host=app.config['HOST'], port=app.config['PORT'])

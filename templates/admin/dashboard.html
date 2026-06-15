@@ -15,19 +15,19 @@
 <div class="stats-grid">
   <div class="stat-card">
     <h3>Revenue Today</h3>
-    <p class="stat-number">${{ "%.2f"|format(today_revenue) }}</p>
+    <p class="stat-number">₱{{ "%.2f"|format(today_revenue) }}</p>
   </div>
   <div class="stat-card">
     <h3>This Week</h3>
-    <p class="stat-number">${{ "%.2f"|format(week_revenue) }}</p>
+    <p class="stat-number">₱{{ "%.2f"|format(week_revenue) }}</p>
   </div>
   <div class="stat-card">
     <h3>This Month</h3>
-    <p class="stat-number">${{ "%.2f"|format(month_revenue) }}</p>
+    <p class="stat-number">₱{{ "%.2f"|format(month_revenue) }}</p>
   </div>
   <div class="stat-card stat-card-accent">
     <h3>Total Revenue</h3>
-    <p class="stat-number">${{ "%.2f"|format(total_revenue) }}</p>
+    <p class="stat-number">₱{{ "%.2f"|format(total_revenue) }}</p>
   </div>
 </div>
 
@@ -76,7 +76,7 @@
     <div class="chart-bars">
       {% for d in chart_days %}
         <div class="chart-col">
-          <span class="chart-val">${{ "%.0f"|format(d.revenue) }}</span>
+          <span class="chart-val">₱{{ "%.0f"|format(d.revenue) }}</span>
           <div class="bar bar-revenue" style="height: {{ (d.revenue / max_rev * 100)|int }}%"></div>
           <span class="chart-label">{{ d.label }}</span>
         </div>
@@ -143,7 +143,7 @@
         <thead><tr><th>Category</th><th>Sold</th><th>Revenue</th></tr></thead>
         <tbody>
           {% for name, qty, rev in cat_sales %}
-            <tr><td>{{ name }}</td><td>{{ qty }}</td><td>${{ "%.2f"|format(rev) }}</td></tr>
+            <tr><td>{{ name }}</td><td>{{ qty }}</td><td>₱{{ "%.2f"|format(rev) }}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -178,7 +178,7 @@
         <tr>
           <td>{{ order.invoice_number }}</td>
           <td>{{ order.user.username }}</td>
-          <td>${{ "%.2f"|format(order.total_amount) }}</td>
+          <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
           <td><span class="status-{{ order.status }}">{{ order.status|title }}</span></td>
         </tr>
       {% else %}

@@ -21,9 +21,10 @@
             {{ 'Paid' if order.paid else 'Unpaid' }}
           </span>
         {% endif %}
-        <span class="order-total">${{ "%.2f"|format(order.total_amount) }}</span>
+        <span class="order-total">₱{{ "%.2f"|format(order.total_amount) }}</span>
         {% if order.status in ('pending', 'pending_payment', 'confirmed', 'preparing') %}
           <form action="{{ url_for('orders.cancel_order', order_id=order.id) }}" method="POST" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Request cancellation for this order?')">Request Cancel</button>
           </form>
         {% elif order.status == 'cancel_requested' %}
@@ -39,8 +40,8 @@
             <tr>
               <td>{{ item.menu_item.name }}</td>
               <td>{{ item.quantity }}</td>
-              <td>${{ "%.2f"|format(item.unit_price) }}</td>
-              <td>${{ "%.2f"|format(item.subtotal()) }}</td>
+              <td>₱{{ "%.2f"|format(item.unit_price) }}</td>
+              <td>₱{{ "%.2f"|format(item.subtotal()) }}</td>
               {% if order.status == 'completed' %}
                 <td>
                   {% if item.rating %}
@@ -48,6 +49,7 @@
                     {% if item.review %}<br><small class="review-text">{{ item.review }}</small>{% endif %}
                   {% else %}
                     <form action="{{ url_for('orders.rate_item') }}" method="POST" class="rating-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <input type="hidden" name="order_item_id" value="{{ item.id }}">
                       <div class="star-select">
                         {% for s in range(1, 6) %}
@@ -66,6 +68,7 @@
       </table>
     </div>
   {% endfor %}
+  {% include "admin/_pagination.html" %}
 {% else %}
   <div class="empty-state">
     <p>No orders yet.</p>

@@ -1,38 +1,37 @@
+from decimal import Decimal
 from flask import (Blueprint, render_template, redirect, url_for,
                    flash, request, session, current_app)
 from flask_login import login_required, current_user
-from models import db, Order, OrderItem, MenuItem, Favorite
+from sqlalchemy.orm import joinedload
+from models import db, Order, OrderItem, MenuItem, Favorite, ALLOWED_STATUS_TRANSITIONS
 from sqlalchemy import exc
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/orders')
-MAX_CART_QTY = 99
-
-ALLOWED_STATUS_TRANSITIONS = {
-    'pending_payment': ['confirmed', 'cancel_requested'],
-    'pending': ['confirmed', 'cancel_requested'],
-    'confirmed': ['preparing', 'cancel_requested'],
-    'preparing': ['ready', 'cancel_requested'],
-    'cancel_requested': ['cancelled'],
-    'ready': ['completed'],
-    'completed': [],
-    'cancelled': [],
-}
 
 
 @orders_bp.route('/cart')
 def view_cart():
     cart = session.get('cart', {})
     cart_items = []
-    total = 0.0
+    total = Decimal('0')
+    removed = []
     for item_id, qty in cart.items():
         try:
             item = MenuItem.query.get(int(item_id))
         except (ValueError, TypeError):
+            removed.append(item_id)
             continue
-        if item:
-            subtotal = item.price * qty
-            cart_items.append({'item': item, 'quantity': qty, 'subtotal': subtotal})
-            total += subtotal
+        if not item:
+            removed.append(item_id)
+            continue
+        subtotal = item.price * qty
+        cart_items.append({'item': item, 'quantity': qty, 'subtotal': subtotal})
+        total += subtotal
+    if removed:
+        for r in removed:
+            cart.pop(str(r), None)
+        session['cart'] = cart
+        flash('Some items were removed from your cart because they are no longer available.', 'info')
     return render_template('orders/cart.html', cart_items=cart_items, total=total)
 
 
@@ -44,13 +43,14 @@ def add_to_cart(item_id):
         return redirect(url_for('menu.index'))
 
     qty = request.form.get('quantity', 1, type=int)
-    qty = max(1, min(qty, MAX_CART_QTY, item.stock))
+    qty = max(1, min(qty, current_app.config['MAX_CART_QTY'], item.stock))
 
     cart = session.get('cart', {})
     current_qty = cart.get(str(item_id), 0)
     new_qty = current_qty + qty
-    if new_qty > MAX_CART_QTY:
-        flash(f'Maximum {MAX_CART_QTY} per item allowed.', 'error')
+    if new_qty > current_app.config['MAX_CART_QTY']:
+        max_qty = current_app.config['MAX_CART_QTY']
+        flash(f'Maximum {max_qty} per item allowed.', 'error')
         return redirect(url_for('menu.index'))
     if new_qty > item.stock:
         flash(f'Only {item.stock} available.', 'error')
@@ -68,7 +68,7 @@ def update_cart():
     quantity = request.form.get('quantity', type=int)
     cart = session.get('cart', {})
     if quantity and quantity > 0:
-        quantity = min(quantity, MAX_CART_QTY)
+        quantity = min(quantity, current_app.config['MAX_CART_QTY'])
         cart[str(item_id)] = quantity
     else:
         cart.pop(str(item_id), None)
@@ -86,7 +86,7 @@ def checkout():
 
     payment_method = request.form.get('payment_method', 'balance')
 
-    total = 0.0
+    total = Decimal('0')
     order_items_data = []
 
     for item_id, qty in cart.items():
@@ -102,7 +102,7 @@ def checkout():
 
     if payment_method == 'balance':
         if current_user.balance < total:
-            flash(f'Insufficient balance. Need ${total:.2f}, have ${current_user.balance:.2f}.',
+            flash(f'Insufficient balance. Need ₱{total:.2f}, have ₱{current_user.balance:.2f}.',
                   'error')
             return redirect(url_for('orders.view_cart'))
         paid = True
@@ -141,14 +141,17 @@ def checkout():
         return redirect(url_for('orders.view_cart'))
 
     session.pop('cart', None)
-    flash(f'Invoice {order.invoice_number} created! Total: ${total:.2f}', 'success')
+    flash(f'Invoice {order.invoice_number} created! Total: ₱{total:.2f}', 'success')
     return redirect(url_for('orders.invoice', order_id=order.id))
 
 
 @orders_bp.route('/invoice/<int:order_id>')
 @login_required
 def invoice(order_id):
-    order = Order.query.get_or_404(order_id)
+    order = Order.query.options(
+        joinedload(Order.user),
+        joinedload(Order.items).joinedload(OrderItem.menu_item)
+    ).get_or_404(order_id)
     if order.user_id != current_user.id and not current_user.is_admin():
         flash('You can only view your own invoices.', 'error')
         return redirect(url_for('orders.history'))
@@ -227,6 +230,11 @@ def toggle_favorite(item_id):
 @orders_bp.route('/history')
 @login_required
 def history():
-    orders = Order.query.filter_by(user_id=current_user.id)\
-                       .order_by(Order.order_date.desc()).all()
-    return render_template('orders/history.html', orders=orders)
+    page = request.args.get('page', 1, type=int)
+    pagination = Order.query.options(
+        joinedload(Order.items).joinedload(OrderItem.menu_item)
+    ).filter_by(user_id=current_user.id)\
+     .order_by(Order.order_date.desc())\
+     .paginate(page=page, per_page=20, error_out=False)
+    return render_template('orders/history.html', orders=pagination.items,
+                           pagination=pagination)

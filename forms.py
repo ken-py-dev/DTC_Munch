@@ -1,7 +1,9 @@
+from decimal import ROUND_HALF_UP
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import (StringField, PasswordField, SelectField, FloatField,
-                     IntegerField, TextAreaField, BooleanField, SubmitField)
+from wtforms import (StringField, PasswordField, SelectField,
+                     IntegerField, TextAreaField, BooleanField, SubmitField,
+                     DecimalField)
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional
 
 
@@ -25,11 +27,12 @@ class RegisterForm(FlaskForm):
 class MenuItemForm(FlaskForm):
     name = StringField('Item Name', validators=[DataRequired(), Length(1, 128)])
     description = TextAreaField('Description', validators=[Optional()])
-    price = FloatField('Price', validators=[DataRequired(), NumberRange(min=0)])
+    price = DecimalField('Price', places=2, rounding=ROUND_HALF_UP,
+                         validators=[DataRequired(), NumberRange(min=0)])
     category_id = SelectField('Category', coerce=int, validators=[Optional()])
     new_category = StringField('Or add new category', validators=[Optional(), Length(1, 64)])
     image = FileField('Image', validators=[Optional(),
-        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp'], 'Images only (jpg, png, gif, webp)')])
+        FileAllowed({'jpg', 'jpeg', 'png', 'gif', 'webp'}, 'Images only (jpg, png, gif, webp)')])
     image_url = StringField('Or image URL', validators=[Optional(), Length(0, 256)])
     available = BooleanField('Available', default=True)
     featured = BooleanField('Featured (daily special)')

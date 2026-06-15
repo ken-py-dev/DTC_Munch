@@ -27,20 +27,23 @@
         <td>
           {% for oi in order.items %}{{ oi.menu_item.name }} x{{ oi.quantity }}{% if not loop.last %}, {% endif %}{% endfor %}
         </td>
-        <td>${{ "%.2f"|format(order.total_amount) }}</td>
+        <td>₱{{ "%.2f"|format(order.total_amount) }}</td>
         <td><span class="status-{{ order.status }}">{{ order.status.title() }}</span></td>
         <td>
           {% if order.status == 'cancel_requested' %}
             <div class="actions">
               <form action="{{ url_for('admin.approve_cancel', order_id=order.id) }}" method="POST" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Approve cancellation and refund?')">Approve</button>
               </form>
               <form action="{{ url_for('admin.reject_cancel', order_id=order.id) }}" method="POST" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Reject cancellation request?')">Reject</button>
               </form>
             </div>
           {% elif order.status != 'cancelled' and order.status != 'completed' %}
             <form action="{{ url_for('admin.update_order_status', order_id=order.id) }}" method="POST" class="status-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <select name="status" class="form-control form-control-sm">
                 <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
                 <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Confirmed</option>

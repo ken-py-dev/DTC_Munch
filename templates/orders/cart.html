@@ -18,17 +18,19 @@
       {% for entry in cart_items %}
         <tr>
           <td>{{ entry.item.name }}</td>
-          <td>${{ "%.2f"|format(entry.item.price) }}</td>
+          <td>₱{{ "%.2f"|format(entry.item.price) }}</td>
           <td>
             <form action="{{ url_for('orders.update_cart') }}" method="POST" class="qty-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="item_id" value="{{ entry.item.id }}">
               <input type="number" name="quantity" value="{{ entry.quantity }}" min="0" max="{{ entry.item.stock }}" class="qty-input">
               <button type="submit" class="btn btn-sm">Update</button>
             </form>
           </td>
-          <td>${{ "%.2f"|format(entry.subtotal) }}</td>
+          <td>₱{{ "%.2f"|format(entry.subtotal) }}</td>
           <td>
             <form action="{{ url_for('orders.update_cart') }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="item_id" value="{{ entry.item.id }}">
               <input type="hidden" name="quantity" value="0">
               <button type="submit" class="btn btn-danger btn-sm">Remove</button>
@@ -40,7 +42,7 @@
     <tfoot>
       <tr>
         <td colspan="3"><strong>Total</strong></td>
-        <td><strong>${{ "%.2f"|format(total) }}</strong></td>
+        <td><strong>₱{{ "%.2f"|format(total) }}</strong></td>
         <td></td>
       </tr>
     </tfoot>
@@ -49,12 +51,13 @@
   <div class="cart-actions">
     {% if current_user.is_authenticated %}
       <form action="{{ url_for('orders.checkout') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="payment-methods">
           <label class="payment-option">
             <input type="radio" name="payment_method" value="balance" checked>
             <span class="payment-label">
               <strong>Balance</strong>
-              <small>Pay with canteen balance (${{ "%.2f"|format(current_user.balance) }})</small>
+              <small>Pay with canteen balance (₱{{ "%.2f"|format(current_user.balance) }})</small>
             </span>
           </label>
           <label class="payment-option">

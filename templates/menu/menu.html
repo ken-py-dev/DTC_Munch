@@ -32,7 +32,8 @@
           <div class="menu-card-actions-top">
             {% if current_user.is_authenticated %}
               <form action="{{ url_for('orders.toggle_favorite', item_id=item.id) }}" method="POST" class="fav-form">
-                <button type="submit" class="btn-fav {% if item.is_favorited_by(current_user) %}fav-active{% endif %}" title="Toggle favorite">&#9733;</button>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-fav {% if fav_ids and item.id in fav_ids %}fav-active{% endif %}" title="Toggle favorite">&#9733;</button>
               </form>
             {% endif %}
           </div>
@@ -41,18 +42,19 @@
           <span class="featured-badge">Daily Special</span>
         {% endif %}
         {% if item.avg_rating %}
-          <span class="stars">{{ '%E2%98%85'|safe * item.avg_rating|int }}{{ '%E2%98%86'|safe * (5 - item.avg_rating|int) }} <small>{{ item.avg_rating }}</small></span>
+          <span class="stars">{{ '★' * item.avg_rating|int }}{{ '☆' * (5 - item.avg_rating|int) }} <small>{{ item.avg_rating }}</small></span>
         {% endif %}
         {% if item.description %}
           <p class="description">{{ item.description }}</p>
         {% endif %}
         <p class="category-badge">{{ item.category.name }}</p>
         <div class="menu-card-footer">
-          <span class="price">${{ "%.2f"|format(item.price) }}</span>
+          <span class="price">₱{{ "%.2f"|format(item.price) }}</span>
           <span class="stock">Stock: {{ item.stock }}</span>
         </div>
         {% if item.available and item.stock > 0 %}
           <form action="{{ url_for('orders.add_to_cart', item_id=item.id) }}" method="POST" class="add-to-cart-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="qty-add-row">
               <input type="number" name="quantity" value="1" min="1" max="{{ [item.stock, 99]|min }}" class="qty-input-sm">
               <button type="submit" class="btn btn-primary btn-sm btn-add-cart">Add to Cart</button>

@@ -10,7 +10,7 @@
 <body>
   <nav class="navbar">
     <div class="nav-container">
-      <a href="{{ url_for('menu.index') }}" class="nav-brand">School Canteen</a>
+      <a href="{{ url_for('menu.index') }}" class="nav-brand">{{ canteen_name }}</a>
       <input type="checkbox" id="nav-check" autocomplete="off">
       <label for="nav-check" class="nav-toggle" aria-label="Toggle navigation menu">
         <span></span><span></span><span></span>
@@ -26,7 +26,7 @@
           {% endif %}
           <a href="{{ url_for('auth.logout') }}">Logout</a>
           <span class="nav-user">{{ current_user.username }}</span>
-          <span class="nav-balance">${{ "%.2f"|format(current_user.balance) }}</span>
+          <span class="nav-balance">₱{{ "%.2f"|format(current_user.balance) }}</span>
         {% else %}
           <a href="{{ url_for('auth.login') }}">Login</a>
           <a href="{{ url_for('auth.register') }}">Register</a>
